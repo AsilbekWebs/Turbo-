@@ -1,0 +1,338 @@
+{% extends 'base.html' %}
+{% block title %}Mahsulot qo'shish{% endblock %}
+
+{% block content %}
+<style>
+  .pc-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+  .pc-head h1 { margin: 0; font-size: 28px; }
+  .pc-head p { margin: 4px 0 0; color: var(--muted); }
+
+  .pc { display: grid; grid-template-columns: 1fr 340px; gap: 24px; align-items: start; }
+  @media (max-width: 880px) { .pc { grid-template-columns: 1fr; } }
+
+  .pc-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 22px; margin-bottom: 18px; }
+  .pc-card h2 { font-size: 17px; margin: 0 0 4px; }
+  .pc-card .hint { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
+
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+  .field label .req { color: var(--danger); }
+  .field input, .field select, .field textarea { margin: 6px 0 0; }
+  .field.invalid input, .field.invalid select, .field.invalid textarea { border-color: var(--danger); }
+  .field .ferr { color: var(--danger); font-size: 13px; margin-top: 5px; min-height: 0; }
+  .field .note { color: var(--muted); font-size: 13px; margin-top: 5px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 560px) { .row2 { grid-template-columns: 1fr; } }
+
+  .with-suffix { position: relative; }
+  .with-suffix input { padding-right: 56px; }
+  .with-suffix span { position: absolute; right: 12px; top: 50%; transform: translateY(-38%); color: var(--muted); font-size: 14px; pointer-events: none; }
+
+  .drop {
+    position: relative; border: 2px dashed #cfd8de; border-radius: 12px; padding: 28px 16px;
+    text-align: center; cursor: pointer; transition: border-color .15s, background .15s; background: #fafbfc;
+  }
+  .drop:hover, .drop.over { border-color: var(--brand); background: var(--brand-soft); }
+  .drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; margin: 0; }
+  .drop .ico { font-size: 30px; }
+  .drop strong { display: block; margin-top: 6px; }
+  .drop small { color: var(--muted); }
+  .img-preview { display: none; position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
+  .img-preview img { display: block; width: 100%; max-height: 260px; object-fit: contain; background: #fafbfc; border-radius: 0; }
+  .img-preview button {
+    position: absolute; top: 10px; right: 10px; padding: 6px 12px; font-size: 13px;
+    background: rgba(27, 42, 52, .8);
+  }
+
+  .preview { position: sticky; top: 84px; }
+  .pv-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .pv-img { aspect-ratio: 4 / 3; background: var(--brand-soft); color: var(--brand); display: grid; place-items: center; font-size: 56px; font-weight: 800; }
+  .pv-img img { width: 100%; height: 100%; object-fit: cover; border-radius: 0; }
+  .pv-body { padding: 16px; }
+  .pv-cat { font-size: 12px; font-weight: 600; color: var(--brand); text-transform: none; }
+  .pv-name { font-weight: 700; font-size: 17px; margin: 4px 0 8px; word-break: break-word; }
+  .pv-price { font-weight: 800; font-size: 20px; }
+  .pv-stock { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .pv-label { font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: 8px; }
+
+  .pc-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+  .btn-ghost { background: #fff; color: var(--ink); border: 1px solid #d4dce2; }
+  .btn-ghost:hover { background: var(--bg); }
+  .pc-actions button { min-width: 160px; }
+  .pc-actions button:disabled { opacity: .6; cursor: default; }
+  .form-err { background: #fdf0ef; color: var(--danger); border: 1px solid #f3c9c5; border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; white-space: pre-line; display: none; }
+
+  .denied { text-align: center; background: var(--card); border: 1px dashed #cfd8de; border-radius: 14px; padding: 60px 20px; }
+  .denied .ico { font-size: 44px; }
+</style>
+
+<div id="page">
+  <div class="pc-head">
+    <div>
+      <h1>Yangi mahsulot</h1>
+      <p>Mahsulot ma'lumotlarini to'ldiring. Saqlangach, u katalogda darhol ko'rinadi.</p>
+    </div>
+  </div>
+
+  <div class="form-err" id="formErr"></div>
+
+  <form id="f" class="pc" novalidate>
+    <div>
+      <div class="pc-card">
+        <h2>Asosiy ma'lumotlar</h2>
+        <p class="hint">Xaridor birinchi ko'radigan ma'lumotlar.</p>
+
+        <div class="field" data-field="name">
+          <label for="name">Nomi <span class="req">*</span></label>
+          <input id="name" name="name" maxlength="255" placeholder="Masalan: Samsung Galaxy A55" required>
+          <div class="ferr"></div>
+        </div>
+
+        <div class="field" data-field="category">
+          <label for="cat">Kategoriya <span class="req">*</span></label>
+          <select id="cat" name="category" required><option value="">Yuklanmoqda...</option></select>
+          <div class="ferr"></div>
+        </div>
+
+        <div class="field" data-field="description">
+          <label for="description">Tavsif</label>
+          <textarea id="description" name="description" rows="5" placeholder="Xususiyatlari, o'lchami, rangi va boshqalar"></textarea>
+          <div class="ferr"></div>
+        </div>
+      </div>
+
+      <div class="pc-card">
+        <h2>Narx va ombor</h2>
+        <p class="hint">Ombordagi soni checkout paytida avtomatik kamayadi.</p>
+        <div class="row2">
+          <div class="field" data-field="price">
+            <label for="price">Narxi <span class="req">*</span></label>
+            <div class="with-suffix">
+              <input id="price" name="price" type="number" min="0" step="0.01" placeholder="0" required>
+              <span>so'm</span>
+            </div>
+            <div class="ferr"></div>
+          </div>
+          <div class="field" data-field="stock">
+            <label for="stock">Ombordagi soni <span class="req">*</span></label>
+            <div class="with-suffix">
+              <input id="stock" name="stock" type="number" min="0" step="1" placeholder="0" required>
+              <span>dona</span>
+            </div>
+            <div class="ferr"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pc-card">
+        <h2>Rasm</h2>
+        <p class="hint">JPG yoki PNG, 5 MB gacha.</p>
+        <div class="field" data-field="image">
+          <div class="drop" id="drop">
+            <input id="image" name="image" type="file" accept="image/*">
+            <div class="ico">🖼️</div>
+            <strong>Rasmni shu yerga tashlang</strong>
+            <small>yoki bosib tanlang</small>
+          </div>
+          <div class="img-preview" id="imgPreview">
+            <img id="imgTag" alt="">
+            <button type="button" id="imgRemove">Olib tashlash</button>
+          </div>
+          <div class="ferr"></div>
+        </div>
+      </div>
+
+      <div class="pc-actions">
+        <a class="btn btn-ghost" href="/">Bekor qilish</a>
+        <button type="submit" id="saveBtn">Mahsulotni saqlash</button>
+      </div>
+    </div>
+
+    <aside class="preview">
+      <div class="pv-label">Katalogda shunday ko'rinadi</div>
+      <div class="pv-card">
+        <div class="pv-img" id="pvImg">?</div>
+        <div class="pv-body">
+          <div class="pv-cat" id="pvCat">Kategoriya</div>
+          <div class="pv-name" id="pvName">Mahsulot nomi</div>
+          <div class="pv-price" id="pvPrice">0 so'm</div>
+          <div class="pv-stock" id="pvStock">Omborda: 0 ta</div>
+        </div>
+      </div>
+    </aside>
+  </form>
+</div>
+{% endblock %}
+
+{% block script %}
+needLogin();
+
+const f = document.getElementById('f');
+const money = x => (Number(x) || 0).toLocaleString('ru-RU') + " so'm";
+let imageUrl = null;
+
+// ---------- Faqat admin ----------
+api('GET', '/api/auth/profile/').then(r => {
+  if (r.ok && r.data && r.data.is_staff === false) {
+    document.getElementById('page').innerHTML = `
+      <div class="denied">
+        <div class="ico">🔒</div>
+        <h2>Ruxsat yo'q</h2>
+        <p style="color:var(--muted)">Mahsulot qo'shish faqat administratorlar uchun.</p>
+        <a class="btn" href="/">Mahsulotlarga qaytish</a>
+      </div>`;
+  }
+});
+
+// ---------- Kategoriyalar (barcha sahifalar) ----------
+async function loadCategories() {
+  let url = '/api/categories/';
+  let all = [];
+  while (url) {
+    const r = await api('GET', url);
+    if (!r.ok) break;
+    all = all.concat(list(r.data));
+    url = r.data && r.data.next ? r.data.next : null;
+  }
+  const byId = Object.fromEntries(all.map(c => [c.id, c]));
+  const label = c => c.parent && byId[c.parent] ? `${byId[c.parent].name} › ${c.name}` : c.name;
+  all.sort((a, b) => label(a).localeCompare(label(b)));
+
+  const sel = document.getElementById('cat');
+  sel.innerHTML = all.length
+    ? '<option value="">Kategoriyani tanlang</option>' + all.map(c => `<option value="${c.id}">${esc(label(c))}</option>`).join('')
+    : '<option value="">Avval kategoriya yarating</option>';
+}
+loadCategories();
+
+// ---------- Jonli ko'rinish ----------
+function updatePreview() {
+  document.getElementById('pvName').textContent = f.name.value.trim() || 'Mahsulot nomi';
+  document.getElementById('pvPrice').textContent = money(f.price.value);
+  document.getElementById('pvStock').textContent = 'Omborda: ' + (f.stock.value || 0) + ' ta';
+  const opt = f.category.selectedOptions[0];
+  document.getElementById('pvCat').textContent = f.category.value && opt ? opt.textContent : 'Kategoriya';
+  const pvImg = document.getElementById('pvImg');
+  pvImg.innerHTML = imageUrl
+    ? `<img src="${imageUrl}" alt="">`
+    : esc((f.name.value.trim() || '?').charAt(0).toUpperCase());
+}
+f.addEventListener('input', e => { clearError(e.target.name); updatePreview(); });
+f.addEventListener('change', updatePreview);
+
+// ---------- Rasm ----------
+const drop = document.getElementById('drop');
+const imgInput = document.getElementById('image');
+
+function showImage(file) {
+  clearError('image');
+  if (!file) return;
+  if (!file.type.startsWith('image/')) return setError('image', 'Faqat rasm fayli tanlang.');
+  if (file.size > 5 * 1024 * 1024) { imgInput.value = ''; return setError('image', 'Rasm hajmi 5 MB dan oshmasligi kerak.'); }
+  if (imageUrl) URL.revokeObjectURL(imageUrl);
+  imageUrl = URL.createObjectURL(file);
+  document.getElementById('imgTag').src = imageUrl;
+  document.getElementById('imgPreview').style.display = 'block';
+  drop.style.display = 'none';
+  updatePreview();
+}
+
+imgInput.onchange = () => showImage(imgInput.files[0]);
+['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, () => drop.classList.add('over')));
+['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, () => drop.classList.remove('over')));
+
+document.getElementById('imgRemove').onclick = () => {
+  imgInput.value = '';
+  if (imageUrl) URL.revokeObjectURL(imageUrl);
+  imageUrl = null;
+  document.getElementById('imgPreview').style.display = 'none';
+  drop.style.display = 'block';
+  updatePreview();
+};
+
+// ---------- Xatolar ----------
+function setError(name, text) {
+  const field = f.querySelector(`[data-field="${name}"]`);
+  if (!field) return false;
+  field.classList.add('invalid');
+  field.querySelector('.ferr').textContent = text;
+  return true;
+}
+function clearError(name) {
+  const field = f.querySelector(`[data-field="${name}"]`);
+  if (field) { field.classList.remove('invalid'); field.querySelector('.ferr').textContent = ''; }
+}
+function clearAll() {
+  f.querySelectorAll('.field').forEach(el => { el.classList.remove('invalid'); el.querySelector('.ferr').textContent = ''; });
+  document.getElementById('formErr').style.display = 'none';
+}
+function showFormError(text) {
+  const box = document.getElementById('formErr');
+  box.textContent = text;
+  box.style.display = 'block';
+  box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function validate() {
+  let ok = true;
+  if (!f.name.value.trim()) ok = !setError('name', 'Nomini kiriting.') && ok;
+  if (!f.category.value) ok = !setError('category', 'Kategoriyani tanlang.') && ok;
+  if (f.price.value === '' || +f.price.value < 0) ok = !setError('price', "Narxni to'g'ri kiriting.") && ok;
+  if (f.stock.value === '' || +f.stock.value < 0 || !Number.isInteger(+f.stock.value)) ok = !setError('stock', 'Butun son kiriting.') && ok;
+  return ok;
+}
+
+// ---------- Saqlash ----------
+f.onsubmit = async e => {
+  e.preventDefault();
+  clearAll();
+  if (!validate()) {
+    const first = f.querySelector('.field.invalid input, .field.invalid select');
+    if (first) first.focus();
+    return;
+  }
+
+  const fd = new FormData();
+  fd.append('name', f.name.value.trim());
+  fd.append('category', f.category.value);
+  fd.append('price', f.price.value);
+  fd.append('stock', f.stock.value);
+  fd.append('description', f.description.value.trim());
+  if (imgInput.files[0]) fd.append('image', imgInput.files[0]);
+
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saqlanmoqda...';
+
+  let res, data = {};
+  try {
+    res = await fetch('/api/products/', { method: 'POST', headers: { 'Authorization': 'Token ' + token }, body: fd });
+    data = await res.json().catch(() => ({}));
+  } catch (ex) {
+    btn.disabled = false;
+    btn.textContent = 'Mahsulotni saqlash';
+    return showFormError("Serverga ulanib bo'lmadi. Internet yoki serverni tekshiring.");
+  }
+
+  if (res.ok) {
+    toast("Mahsulot qo'shildi");
+    setTimeout(() => location.href = '/product/' + data.id + '/', 600);
+    return;
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Mahsulotni saqlash';
+
+  if (res.status === 403) return showFormError("Mahsulot qo'shish faqat administratorlar uchun.");
+  if (res.status === 401) return location.href = '/login/';
+
+  // Maydon xatolarini o'z joyiga qo'yish
+  const rest = [];
+  Object.entries(data).forEach(([k, v]) => {
+    const text = Array.isArray(v) ? v.join(' ') : String(v);
+    if (!setError(k, text)) rest.push(text);
+  });
+  if (rest.length) showFormError(rest.join('\n'));
+  else toast("Ba'zi maydonlarda xato bor", true);
+};
+{% endblock %}

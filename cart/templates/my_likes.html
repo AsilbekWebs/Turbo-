@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% block title %}Yoqqanlar{% endblock %}
+
+{% block content %}
+<style>
+  .lk-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+  .lk-head h1 { margin: 0; font-size: 30px; display: flex; align-items: center; gap: 10px; }
+  .lk-head h1 .heart { color: #d6336c; }
+  .lk-head p { margin: 4px 0 0; color: var(--muted); }
+  .lk-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn-ghost { background: #fff; color: var(--ink); border: 1px solid #d4dce2; }
+  .btn-ghost:hover { background: var(--bg); }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px; }
+  .card {
+    position: relative; display: flex; flex-direction: column; background: var(--card);
+    border: 1px solid var(--line); border-radius: 14px; overflow: hidden; cursor: pointer;
+    transition: border-color .15s, box-shadow .15s, transform .15s, opacity .25s;
+  }
+  .card:hover { border-color: #c9d6dc; box-shadow: 0 10px 28px rgba(27, 42, 52, .08); transform: translateY(-2px); }
+  .card.removing { opacity: 0; transform: scale(.96); }
+  .card-img { aspect-ratio: 1 / 1; background: #f7f9fa; overflow: hidden; }
+  .card-img img { width: 100%; height: 100%; object-fit: cover; border-radius: 0; transition: transform .3s; }
+  .card:hover .card-img img { transform: scale(1.04); }
+  .card-ph { width: 100%; height: 100%; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand); font-size: 54px; font-weight: 800; }
+
+  .unlike {
+    position: absolute; top: 10px; right: 10px; width: 38px; height: 38px; padding: 0;
+    border-radius: 50%; background: #fff; color: #d6336c; font-size: 18px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .12);
+  }
+  .unlike:hover { background: #fff0f3; }
+
+  .card-body { padding: 14px 14px 16px; display: flex; flex-direction: column; flex: 1; }
+  .card-date { font-size: 12px; color: var(--muted); }
+  .card-name {
+    font-weight: 700; margin: 4px 0 12px; line-height: 1.35;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .card-foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .card-price { font-weight: 800; font-size: 18px; }
+  .card-add { padding: 9px 14px; border-radius: 10px; font-size: 14px; }
+
+  .empty { text-align: center; padding: 70px 20px; background: var(--card); border: 1px dashed #cfd8de; border-radius: 14px; }
+  .empty .ico { font-size: 52px; color: #d6336c; }
+  .empty h2 { margin: 10px 0 6px; }
+  .empty p { color: var(--muted); margin: 0 0 20px; }
+
+  .sk { background: linear-gradient(90deg, #eef2f4, #f7f9fa, #eef2f4); background-size: 200% 100%; animation: sk 1.2s infinite; border-radius: 14px; aspect-ratio: 3 / 4; }
+  @keyframes sk { to { background-position: -200% 0; } }
+</style>
+
+<div class="lk-head">
+  <div>
+    <h1><span class="heart">♥</span> Yoqqan mahsulotlarim</h1>
+    <p id="subtitle">Saqlab qo'ygan mahsulotlaringiz shu yerda.</p>
+  </div>
+  <div class="lk-actions" id="actions"></div>
+</div>
+
+<div class="cards" id="likes">
+  <div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div>
+</div>
+{% endblock %}
+
+{% block script %}
+needLogin();
+
+const money = x => Number(x).toLocaleString('ru-RU') + " so'm";
+let likes = [];
+
+async function loadLikes() {
+  let url = '/api/likes/';
+  likes = [];
+  while (url) {
+    const r = await api('GET', url);
+    if (!r.ok) {
+      document.getElementById('likes').outerHTML =
+        `<div class="empty"><div class="ico">⚠️</div><h2>Yuklab bo'lmadi</h2><p>Sahifani yangilab ko'ring.</p></div>`;
+      return;
+    }
+    likes = likes.concat(list(r.data));
+    url = r.data && r.data.next ? r.data.next : null;
+  }
+  render();
+}
+
+function render() {
+  const box = document.getElementById('likes');
+  const actions = document.getElementById('actions');
+  const subtitle = document.getElementById('subtitle');
+
+  if (!likes.length) {
+    actions.innerHTML = '';
+    subtitle.textContent = "Saqlab qo'ygan mahsulotlaringiz shu yerda.";
+    box.className = '';
+    box.innerHTML = `
+      <div class="empty">
+        <div class="ico">♡</div>
+        <h2>Hali hech narsa yoqtirmagansiz</h2>
+        <p>Mahsulot sahifasidagi ♥ tugmasini bosing, u shu yerda saqlanadi.</p>
+        <a class="btn" href="/">Mahsulotlarni ko'rish</a>
+      </div>`;
+    return;
+  }
+
+  subtitle.textContent = `${likes.length} ta mahsulot saqlangan`;
+  actions.innerHTML = `<button class="btn-ghost" onclick="addAllToCart()">🛒 Hammasini savatga</button>`;
+  box.className = 'cards';
+  box.innerHTML = likes.map(l => {
+    const name = l.product_name || 'Mahsulot';
+    return `
+      <article class="card" id="like-${l.product}" onclick="location.href='/product/${l.product}/'">
+        <button class="unlike" title="Yoqqanlardan olib tashlash" aria-label="Yoqqanlardan olib tashlash"
+          onclick="event.stopPropagation(); unlike(${l.product})">♥</button>
+        <div class="card-img">
+          ${l.product_image ? `<img src="${esc(l.product_image)}" alt="${esc(name)}" loading="lazy">`
+                            : `<div class="card-ph">${esc(name).charAt(0).toUpperCase()}</div>`}
+        </div>
+        <div class="card-body">
+          <div class="card-date">${l.created_at ? 'Saqlangan: ' + new Date(l.created_at).toLocaleDateString('ru-RU') : ''}</div>
+          <div class="card-name">${esc(name)}</div>
+          <div class="card-foot">
+            <span class="card-price">${l.product_price != null ? money(l.product_price) : ''}</span>
+            <button class="card-add" onclick="event.stopPropagation(); addCart(${l.product})">Savatga</button>
+          </div>
+        </div>
+      </article>`;
+  }).join('');
+}
+
+async function unlike(productId) {
+  const r = await api('POST', `/api/products/${productId}/like/`);
+  if (!r.ok) return toast(err(r.data), true);
+  if (r.data && r.data.liked) await api('POST', `/api/products/${productId}/like/`);
+
+  const card = document.getElementById('like-' + productId);
+  if (card) card.classList.add('removing');
+  setTimeout(() => {
+    likes = likes.filter(l => l.product !== productId);
+    render();
+  }, 250);
+  toast('Yoqqanlardan olib tashlandi');
+}
+
+async function addAllToCart() {
+  let ok = 0, fail = 0;
+  for (const l of likes) {
+    const r = await api('POST', '/api/cart/add/', { product_id: l.product, quantity: 1 });
+    r.ok ? ok++ : fail++;
+  }
+  updateCartCount();
+  if (ok) toast(`${ok} ta mahsulot savatga qo'shildi`);
+  if (fail) toast(`${fail} ta mahsulot qo'shilmadi (omborda yo'q bo'lishi mumkin)`, true);
+}
+
+loadLikes();
+{% endblock %}

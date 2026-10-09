@@ -1,0 +1,318 @@
+{% extends 'base.html' %}
+{% block title %}Mahsulotlar{% endblock %}
+
+{% block content %}
+<style>
+  .pl-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+  .pl-head h1 { margin: 0; font-size: 30px; }
+  .pl-head p { margin: 4px 0 0; color: var(--muted); }
+
+  .pl-search { position: relative; margin-bottom: 22px; }
+  .pl-search input { margin: 0; height: 52px; padding: 0 130px 0 48px; font-size: 16px; border-radius: 12px; }
+  .pl-search .ico { position: absolute; left: 17px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 18px; pointer-events: none; }
+  .pl-search button { position: absolute; right: 6px; top: 6px; height: 40px; border-radius: 9px; }
+
+  .pl { display: grid; grid-template-columns: 250px 1fr; gap: 26px; align-items: start; }
+  @media (max-width: 900px) { .pl { grid-template-columns: 1fr; } }
+
+  /* Filtrlar */
+  .flt { position: sticky; top: 84px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+  .flt h3 { font-size: 15px; margin: 0 0 10px; }
+  .flt-sec { padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid var(--line); }
+  .flt-sec:last-of-type { border-bottom: 0; margin-bottom: 8px; padding-bottom: 0; }
+  .cat-list { display: flex; flex-direction: column; gap: 2px; max-height: 320px; overflow-y: auto; }
+  .cat-list a {
+    display: flex; justify-content: space-between; padding: 7px 10px; border-radius: 8px;
+    color: var(--ink); text-decoration: none; font-size: 14px; font-weight: 500;
+  }
+  .cat-list a:hover { background: var(--bg); }
+  .cat-list a.active { background: var(--brand-soft); color: var(--brand); font-weight: 700; }
+  .cat-list a.child { padding-left: 24px; color: var(--muted); }
+  .cat-list a.child.active { color: var(--brand); }
+  .price-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .price-row input { margin: 0; }
+  .flt-btns { display: flex; gap: 8px; margin-top: 14px; }
+  .flt-btns button { flex: 1; }
+  .btn-ghost { background: #fff; color: var(--ink); border: 1px solid #d4dce2; }
+  .btn-ghost:hover { background: var(--bg); }
+  .flt-toggle { display: none; width: 100%; margin-bottom: 12px; }
+  @media (max-width: 900px) {
+    .flt-toggle { display: flex; }
+    .flt { position: static; display: none; }
+    .flt.open { display: block; }
+  }
+
+  /* Asboblar paneli */
+  .bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .bar .count { color: var(--muted); font-size: 14px; }
+  .bar .count strong { color: var(--ink); }
+  .bar select { width: auto; margin: 0; padding-right: 32px; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .chips:empty { display: none; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px 5px 12px;
+    background: var(--brand-soft); color: var(--brand); border-radius: 20px;
+    font-size: 13px; font-weight: 600; text-decoration: none;
+  }
+  .chip:hover { background: #d3e8e8; }
+  .chip b { font-size: 15px; line-height: 1; }
+
+  /* Kartochkalar */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; }
+  .card {
+    position: relative; display: flex; flex-direction: column; background: var(--card);
+    border: 1px solid var(--line); border-radius: 14px; overflow: hidden; cursor: pointer;
+    transition: border-color .15s, box-shadow .15s, transform .15s;
+  }
+  .card:hover { border-color: #c9d6dc; box-shadow: 0 10px 28px rgba(27, 42, 52, .08); transform: translateY(-2px); }
+  .card-img { aspect-ratio: 1 / 1; background: #f7f9fa; display: grid; place-items: center; overflow: hidden; }
+  .card-img img { width: 100%; height: 100%; object-fit: cover; border-radius: 0; transition: transform .3s; }
+  .card:hover .card-img img { transform: scale(1.04); }
+  .card-ph { width: 100%; height: 100%; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand); font-size: 54px; font-weight: 800; }
+  .tag {
+    position: absolute; top: 10px; left: 10px; padding: 3px 9px; border-radius: 6px;
+    font-size: 12px; font-weight: 700; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  }
+  .tag.low { color: #b7791f; }
+  .tag.out { color: var(--danger); }
+  .card-body { padding: 14px 14px 16px; display: flex; flex-direction: column; flex: 1; }
+  .card-cat { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .card-name {
+    font-weight: 700; margin: 4px 0 12px; line-height: 1.35; color: var(--ink);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .card-foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .card-price { font-weight: 800; font-size: 18px; }
+  .card-add { width: 40px; height: 40px; padding: 0; border-radius: 10px; font-size: 18px; flex-shrink: 0; }
+  .card-add:disabled { background: #c5ced3; cursor: default; }
+
+  /* Sahifalash */
+  .pager { display: flex; justify-content: center; gap: 6px; margin-top: 30px; flex-wrap: wrap; }
+  .pager a, .pager span {
+    min-width: 40px; height: 40px; padding: 0 12px; display: inline-grid; place-items: center;
+    border-radius: 10px; border: 1px solid var(--line); background: #fff;
+    color: var(--ink); text-decoration: none; font-weight: 600;
+  }
+  .pager a:hover { border-color: var(--brand); color: var(--brand); }
+  .pager .cur { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .pager .dots { border: 0; background: none; }
+
+  .empty { grid-column: 1 / -1; text-align: center; padding: 60px 20px; background: var(--card); border: 1px dashed #cfd8de; border-radius: 14px; }
+  .empty .ico { font-size: 44px; }
+  .empty p { color: var(--muted); }
+
+  .sk { background: linear-gradient(90deg, #eef2f4, #f7f9fa, #eef2f4); background-size: 200% 100%; animation: sk 1.2s infinite; border-radius: 14px; aspect-ratio: 3 / 4; }
+  @keyframes sk { to { background-position: -200% 0; } }
+</style>
+
+<div class="pl-head">
+  <div>
+    <h1>Mahsulotlar</h1>
+    <p>Kerakli mahsulotni toping va bir necha bosishda buyurtma bering.</p>
+  </div>
+  <div id="addBtn"></div>
+</div>
+
+<form id="f">
+  <div class="pl-search">
+    <span class="ico">🔍</span>
+    <input name="search" type="search" placeholder="Nomi yoki tavsifi bo'yicha qidirish" aria-label="Qidirish">
+    <button>Qidirish</button>
+  </div>
+
+  <div class="pl">
+    <div>
+      <button type="button" class="btn-ghost flt-toggle" id="fltToggle">⚙ Filtrlar</button>
+      <aside class="flt" id="flt">
+        <div class="flt-sec">
+          <h3>Kategoriyalar</h3>
+          <div class="cat-list" id="cats"><span style="color:var(--muted);font-size:14px">Yuklanmoqda...</span></div>
+        </div>
+        <div class="flt-sec">
+          <h3>Narx, so'm</h3>
+          <div class="price-row">
+            <input name="min_price" type="number" min="0" placeholder="dan" aria-label="Minimal narx">
+            <input name="max_price" type="number" min="0" placeholder="gacha" aria-label="Maksimal narx">
+          </div>
+        </div>
+        <input type="hidden" name="category">
+        <div class="flt-btns">
+          <button type="submit">Qo'llash</button>
+          <a class="btn btn-ghost" href="/">Tozalash</a>
+        </div>
+      </aside>
+    </div>
+
+    <section>
+      <div class="bar">
+        <div class="count" id="count">&nbsp;</div>
+        <select name="ordering" id="ordering" aria-label="Saralash">
+          <option value="">Avval yangilari</option>
+          <option value="price">Avval arzonlari</option>
+          <option value="-price">Avval qimmatlari</option>
+          <option value="created_at">Avval eskilari</option>
+        </select>
+      </div>
+      <div class="chips" id="chips"></div>
+      <div class="cards" id="list">
+        <div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div>
+      </div>
+      <nav class="pager" id="pages"></nav>
+    </section>
+  </div>
+</form>
+{% endblock %}
+
+{% block script %}
+const PAGE_SIZE = 10;
+const params = new URLSearchParams(location.search);
+const f = document.getElementById('f');
+const money = x => Number(x).toLocaleString('ru-RU') + " so'm";
+let categories = [];
+
+// Formani URL'dagi qiymatlar bilan to'ldirish
+for (const [k, v] of params) if (f.elements[k]) f.elements[k].value = v;
+
+// URL yasash: joriy filtrlarni saqlab, bittasini o'zgartiradi
+function urlWith(changes) {
+  const p = new URLSearchParams(location.search);
+  Object.entries(changes).forEach(([k, v]) => (v === '' || v == null) ? p.delete(k) : p.set(k, v));
+  if (!('page' in changes)) p.delete('page');
+  const s = p.toString();
+  return '/' + (s ? '?' + s : '');
+}
+
+// Bo'sh maydonlarni URL'ga qo'shmasdan yuborish
+f.onsubmit = e => {
+  e.preventDefault();
+  const p = new URLSearchParams();
+  new FormData(f).forEach((v, k) => { if (String(v).trim() !== '') p.set(k, String(v).trim()); });
+  location.href = '/' + (p.toString() ? '?' + p : '');
+};
+document.getElementById('ordering').onchange = () => f.requestSubmit();
+document.getElementById('fltToggle').onclick = () => document.getElementById('flt').classList.toggle('open');
+
+// Admin uchun "Mahsulot qo'shish" tugmasi
+if (token) {
+  api('GET', '/api/auth/profile/').then(r => {
+    if (r.ok && r.data && r.data.is_staff) {
+      document.getElementById('addBtn').innerHTML = `<a class="btn" href="/products/add/">+ Mahsulot qo'shish</a>`;
+    }
+  });
+}
+
+// ---------- Kategoriyalar ----------
+async function loadCategories() {
+  let url = '/api/categories/';
+  while (url) {
+    const r = await api('GET', url);
+    if (!r.ok) break;
+    categories = categories.concat(list(r.data));
+    url = r.data && r.data.next ? r.data.next : null;
+  }
+  const current = params.get('category') || '';
+  const parents = categories.filter(c => !c.parent).sort((a, b) => a.name.localeCompare(b.name));
+  const childrenOf = id => categories.filter(c => c.parent === id).sort((a, b) => a.name.localeCompare(b.name));
+
+  let html = `<a href="${urlWith({ category: '' })}" class="${current ? '' : 'active'}">Barchasi</a>`;
+  parents.forEach(p => {
+    html += `<a href="${urlWith({ category: p.slug })}" class="${current === p.slug ? 'active' : ''}">${esc(p.name)}</a>`;
+    childrenOf(p.id).forEach(c => {
+      html += `<a href="${urlWith({ category: c.slug })}" class="child ${current === c.slug ? 'active' : ''}">${esc(c.name)}</a>`;
+    });
+  });
+  document.getElementById('cats').innerHTML = html;
+  renderChips();
+}
+
+// ---------- Faol filtrlar ----------
+function renderChips() {
+  const chips = [];
+  const cat = params.get('category');
+  if (cat) {
+    const c = categories.find(x => x.slug === cat);
+    chips.push([c ? c.name : cat, { category: '' }]);
+  }
+  if (params.get('search')) chips.push([`"${params.get('search')}"`, { search: '' }]);
+  if (params.get('min_price')) chips.push([`${money(params.get('min_price'))} dan`, { min_price: '' }]);
+  if (params.get('max_price')) chips.push([`${money(params.get('max_price'))} gacha`, { max_price: '' }]);
+  document.getElementById('chips').innerHTML = chips
+    .map(([label, ch]) => `<a class="chip" href="${urlWith(ch)}">${esc(label)} <b>×</b></a>`).join('');
+}
+
+// ---------- Mahsulotlar ----------
+async function loadProducts() {
+  const r = await api('GET', '/api/products/?' + params);
+  const box = document.getElementById('list');
+
+  if (!r.ok) {
+    box.innerHTML = `<div class="empty"><div class="ico">⚠️</div><h2>Mahsulotlarni yuklab bo'lmadi</h2><p>Sahifani yangilab ko'ring.</p></div>`;
+    return;
+  }
+
+  const items = list(r.data);
+  const total = r.data.count ?? items.length;
+  document.getElementById('count').innerHTML = `<strong>${total}</strong> ta mahsulot topildi`;
+
+  if (!items.length) {
+    box.innerHTML = `
+      <div class="empty">
+        <div class="ico">🔎</div>
+        <h2>Hech narsa topilmadi</h2>
+        <p>Qidiruv so'zini yoki filtrlarni o'zgartirib ko'ring.</p>
+        <a class="btn" href="/">Filtrlarni tozalash</a>
+      </div>`;
+    document.getElementById('pages').innerHTML = '';
+    return;
+  }
+
+  box.innerHTML = items.map(p => {
+    const cat = typeof p.category === 'object' && p.category ? p.category.name : (p.category_name || p.category || '');
+    const tag = p.stock === 0 ? '<span class="tag out">Tugagan</span>'
+              : p.stock <= 5 ? `<span class="tag low">${p.stock} ta qoldi</span>` : '';
+    return `
+      <article class="card" onclick="location.href='/product/${p.id}/'">
+        ${tag}
+        <div class="card-img">
+          ${p.image ? `<img src="${esc(p.image)}" alt="${esc(p.name)}" loading="lazy">`
+                    : `<div class="card-ph">${esc(p.name).charAt(0).toUpperCase()}</div>`}
+        </div>
+        <div class="card-body">
+          <div class="card-cat">${esc(cat)}</div>
+          <div class="card-name">${esc(p.name)}</div>
+          <div class="card-foot">
+            <span class="card-price">${money(p.price)}</span>
+            <button type="button" class="card-add" title="Savatga qo'shish" aria-label="Savatga qo'shish"
+              ${p.stock === 0 ? 'disabled' : ''}
+              onclick="event.stopPropagation(); addCart(${p.id})">🛒</button>
+          </div>
+        </div>
+      </article>`;
+  }).join('');
+
+  renderPager(total);
+}
+
+// ---------- Sahifalash ----------
+function renderPager(total) {
+  const pages = Math.ceil(total / PAGE_SIZE);
+  const cur = +(params.get('page') || 1);
+  if (pages <= 1) { document.getElementById('pages').innerHTML = ''; return; }
+
+  const link = (n, label = n) => `<a href="${urlWith({ page: n })}">${label}</a>`;
+  let html = cur > 1 ? link(cur - 1, '‹') : '';
+  for (let n = 1; n <= pages; n++) {
+    if (n === 1 || n === pages || Math.abs(n - cur) <= 1) {
+      html += n === cur ? `<span class="cur">${n}</span>` : link(n);
+    } else if (Math.abs(n - cur) === 2) {
+      html += '<span class="dots">…</span>';
+    }
+  }
+  if (cur < pages) html += link(cur + 1, '›');
+  document.getElementById('pages').innerHTML = html;
+}
+
+loadCategories();
+loadProducts();
+renderChips();
+{% endblock %}

@@ -1,0 +1,263 @@
+{% extends 'base.html' %}
+{% block title %}Ro'yxatdan o'tish{% endblock %}
+
+{% block content %}
+<style>
+  .auth {
+    max-width: 960px; margin: 10px auto 0; display: grid; grid-template-columns: 1fr 1.15fr;
+    background: var(--card); border: 1px solid var(--line); border-radius: 20px; overflow: hidden;
+    box-shadow: 0 20px 50px rgba(27, 42, 52, .07);
+  }
+  @media (max-width: 800px) { .auth { grid-template-columns: 1fr; } .auth-side { display: none; } }
+
+  .auth-side {
+    position: relative; padding: 44px 40px; color: #fff; overflow: hidden;
+    background: linear-gradient(150deg, #0f6e6e 0%, #0b4f55 100%);
+  }
+  .auth-side::after { content: ''; position: absolute; width: 340px; height: 340px; border-radius: 50%; right: -120px; bottom: -120px; background: rgba(255, 255, 255, .07); }
+  .auth-side .logo-mark { background: #fff; color: var(--brand); }
+  .auth-side h2 { font-size: 28px; margin: 28px 0 10px; line-height: 1.2; }
+  .auth-side p { opacity: .85; margin: 0; }
+  .steps { list-style: none; padding: 0; margin: 30px 0 0; display: flex; flex-direction: column; gap: 16px; position: relative; z-index: 1; }
+  .steps li { display: flex; gap: 14px; align-items: flex-start; }
+  .steps .n { width: 30px; height: 30px; border-radius: 50%; background: rgba(255, 255, 255, .16); display: grid; place-items: center; font-weight: 800; flex-shrink: 0; }
+  .steps b { display: block; }
+  .steps small { opacity: .8; }
+
+  .auth-form { padding: 40px; }
+  @media (max-width: 480px) { .auth-form { padding: 30px 22px; } }
+  .auth-form h1 { margin: 0 0 6px; font-size: 26px; }
+  .auth-form .sub { color: var(--muted); margin: 0 0 24px; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+  @media (max-width: 520px) { .grid2 { grid-template-columns: 1fr; } }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 14px; font-weight: 600; }
+  .field label .opt { color: var(--muted); font-weight: 500; font-size: 13px; }
+  .field input { margin: 6px 0 0; height: 46px; }
+  .field.invalid input { border-color: var(--danger); }
+  .field.valid input { border-color: #3aa36f; }
+  .field .ferr { color: var(--danger); font-size: 13px; margin-top: 5px; }
+
+  .pw { position: relative; }
+  .pw input { padding-right: 76px; }
+  .pw button {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-38%); height: 34px; padding: 0 10px;
+    background: none; color: var(--muted); font-size: 13px; font-weight: 600;
+  }
+  .pw button:hover { background: var(--bg); color: var(--ink); }
+
+  .meter { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 8px; }
+  .meter i { height: 4px; border-radius: 2px; background: #e3e8ec; transition: background .2s; }
+  .meter-text { font-size: 12px; color: var(--muted); margin-top: 5px; }
+  .s1 i:nth-child(-n+1) { background: #d64545; }
+  .s2 i:nth-child(-n+2) { background: #e08a1e; }
+  .s3 i:nth-child(-n+3) { background: #c9b11a; }
+  .s4 i:nth-child(-n+4) { background: #2f9e62; }
+
+  .alert {
+    display: none; padding: 12px 14px; margin-bottom: 16px; background: #fdf0ef; color: var(--danger);
+    border: 1px solid #f3c9c5; border-radius: 10px; font-size: 14px; white-space: pre-line;
+  }
+  .alert.show { display: block; }
+
+  .submit { width: 100%; height: 48px; font-size: 16px; border-radius: 10px; margin-top: 6px; }
+  .submit:disabled { opacity: .7; cursor: default; }
+  .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; display: none; }
+  .submit.loading .spinner { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .switch { text-align: center; margin-top: 20px; color: var(--muted); font-size: 14px; }
+  .switch a { font-weight: 700; text-decoration: none; }
+  .switch a:hover { text-decoration: underline; }
+</style>
+
+<div class="auth">
+  <div class="auth-side">
+    <span class="logo-mark">T</span>
+    <h2>Turbo Shop'ga xush kelibsiz!</h2>
+    <p>Bir daqiqada akkaunt oching va xaridni boshlang.</p>
+    <ul class="steps">
+      <li><span class="n">1</span><span><b>Akkaunt yarating</b><small>Login, email va parol kifoya</small></span></li>
+      <li><span class="n">2</span><span><b>Mahsulot tanlang</b><small>Savatga qo'shing yoki saqlab qo'ying</small></span></li>
+      <li><span class="n">3</span><span><b>Buyurtma bering</b><small>Holatini shaxsiy kabinetda kuzating</small></span></li>
+    </ul>
+  </div>
+
+  <div class="auth-form">
+    <h1>Ro'yxatdan o'tish</h1>
+    <p class="sub">Ma'lumotlaringizni kiriting.</p>
+
+    <div class="alert" id="msg" role="alert"></div>
+
+    <form id="f" novalidate>
+      <div class="grid2">
+        <div class="field" data-field="username">
+          <label for="username">Login</label>
+          <input id="username" name="username" autocomplete="username" placeholder="ali_valiyev" required autofocus>
+          <div class="ferr"></div>
+        </div>
+        <div class="field" data-field="phone">
+          <label for="phone">Telefon <span class="opt">(ixtiyoriy)</span></label>
+          <input id="phone" name="phone" type="tel" autocomplete="tel" placeholder="+998 90 123 45 67">
+          <div class="ferr"></div>
+        </div>
+      </div>
+
+      <div class="field" data-field="email">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" autocomplete="email" placeholder="nom@example.com" required>
+        <div class="ferr"></div>
+      </div>
+
+      <div class="field" data-field="password">
+        <label for="password">Parol</label>
+        <div class="pw">
+          <input id="password" name="password" type="password" autocomplete="new-password" placeholder="Kamida 8 ta belgi" required>
+          <button type="button" data-toggle="password">Ko'rsatish</button>
+        </div>
+        <div class="meter" id="meter"><i></i><i></i><i></i><i></i></div>
+        <div class="meter-text" id="meterText">Harf, raqam va belgilarni aralashtiring.</div>
+        <div class="ferr"></div>
+      </div>
+
+      <div class="field" data-field="password2">
+        <label for="password2">Parolni tasdiqlang</label>
+        <div class="pw">
+          <input id="password2" name="password2" type="password" autocomplete="new-password" placeholder="Parolni qayta kiriting" required>
+          <button type="button" data-toggle="password2">Ko'rsatish</button>
+        </div>
+        <div class="ferr"></div>
+      </div>
+
+      <button class="submit" id="btn"><span class="spinner"></span><span id="btnText">Akkaunt yaratish</span></button>
+    </form>
+
+    <div class="switch">Akkauntingiz bormi? <a href="/login/">Kiring</a></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+if (token) location.href = '/';
+
+const f = document.getElementById('f');
+const msg = document.getElementById('msg');
+const btn = document.getElementById('btn');
+
+// ---------- Parolni ko'rsatish ----------
+document.querySelectorAll('[data-toggle]').forEach(b => {
+  b.onclick = () => {
+    const input = f.elements[b.dataset.toggle];
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    b.textContent = show ? 'Yashirish' : "Ko'rsatish";
+  };
+});
+
+// ---------- Parol kuchi ----------
+const LEVELS = ['', 'Juda oddiy', "O'rtacha", 'Yaxshi', 'Kuchli'];
+function strength(p) {
+  if (!p) return 0;
+  let s = 0;
+  if (p.length >= 8) s++;
+  if (/[a-z]/.test(p) && /[A-Z]/.test(p)) s++;
+  if (/\d/.test(p)) s++;
+  if (/[^A-Za-z0-9]/.test(p) || p.length >= 12) s++;
+  return Math.max(1, s);
+}
+f.password.addEventListener('input', () => {
+  const s = strength(f.password.value);
+  document.getElementById('meter').className = 'meter' + (s ? ' s' + s : '');
+  document.getElementById('meterText').textContent = s ? 'Parol: ' + LEVELS[s] : 'Harf, raqam va belgilarni aralashtiring.';
+});
+
+// ---------- Xatolar ----------
+function setError(name, text) {
+  const el = f.querySelector(`[data-field="${name}"]`);
+  if (!el) return false;
+  el.classList.remove('valid');
+  el.classList.add('invalid');
+  el.querySelector('.ferr').textContent = text;
+  return true;
+}
+function clearError(name) {
+  const el = f.querySelector(`[data-field="${name}"]`);
+  if (el) { el.classList.remove('invalid'); el.querySelector('.ferr').textContent = ''; }
+}
+f.addEventListener('input', e => { clearError(e.target.name); msg.classList.remove('show'); });
+
+f.password2.addEventListener('input', () => {
+  const el = f.querySelector('[data-field="password2"]');
+  el.classList.toggle('valid', f.password2.value && f.password2.value === f.password.value);
+});
+
+function validate() {
+  let ok = true;
+  const v = k => f.elements[k].value.trim();
+  if (!v('username')) { setError('username', 'Login kiriting.'); ok = false; }
+  else if (!/^[\w.@+-]+$/.test(v('username'))) { setError('username', "Faqat harf, raqam va . @ + - _ belgilari."); ok = false; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v('email'))) { setError('email', "Email manzil noto'g'ri."); ok = false; }
+  if (v('phone') && !/^\+?[\d\s()-]{9,20}$/.test(v('phone'))) { setError('phone', "Telefon raqam noto'g'ri."); ok = false; }
+  if (f.password.value.length < 8) { setError('password', "Parol kamida 8 ta belgidan iborat bo'lsin."); ok = false; }
+  if (f.password2.value !== f.password.value) { setError('password2', 'Parollar mos kelmadi.'); ok = false; }
+  return ok;
+}
+
+// ---------- Yuborish ----------
+function setLoading(on, text) {
+  btn.disabled = on;
+  btn.classList.toggle('loading', on);
+  document.getElementById('btnText').textContent = text;
+}
+
+f.onsubmit = async e => {
+  e.preventDefault();
+  ['username', 'email', 'phone', 'password', 'password2'].forEach(clearError);
+  msg.classList.remove('show');
+
+  if (!validate()) {
+    const first = f.querySelector('.field.invalid input');
+    if (first) first.focus();
+    return;
+  }
+
+  const body = {
+    username: f.username.value.trim(),
+    email: f.email.value.trim(),
+    phone: f.phone.value.replace(/[\s()-]/g, ''),
+    password: f.password.value,
+  };
+
+  setLoading(true, 'Yaratilmoqda...');
+  const r = await api('POST', '/api/auth/register/', body, false);
+
+  if (!r.ok) {
+    setLoading(false, 'Akkaunt yaratish');
+    const rest = [];
+    Object.entries(r.data || {}).forEach(([k, v]) => {
+      let text = Array.isArray(v) ? v.join(' ') : String(v);
+      if (/already exists/i.test(text)) {
+        if (k === 'email') text = "Bu email bilan akkaunt allaqachon bor.";
+        if (k === 'username') text = 'Bu login band. Boshqasini tanlang.';
+      }
+      if (!setError(k, text)) rest.push(text);
+    });
+    if (rest.length || !r.data) {
+      msg.textContent = rest.length ? rest.join('\n') : "Serverga ulanib bo'lmadi. Keyinroq urinib ko'ring.";
+      msg.classList.add('show');
+    }
+    return;
+  }
+
+  // Avtomatik login
+  setLoading(true, 'Kirilmoqda...');
+  const l = await api('POST', '/api/auth/login/', { username: body.username, password: body.password }, false);
+  if (l.ok && l.data && l.data.token) {
+    localStorage.setItem('token', l.data.token);
+    location.href = '/';
+  } else {
+    location.href = '/login/';
+  }
+};
+{% endblock %}

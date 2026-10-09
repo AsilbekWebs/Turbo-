@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+{% block title %}Buyurtmalar{% endblock %}
+
+{% block content %}
+<style>
+  .ol-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+  .ol-head h1 { margin: 0; font-size: 28px; }
+  .ol-head p { margin: 4px 0 0; color: var(--muted); }
+
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 18px; }
+  .tab {
+    display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 10px;
+    background: #fff; color: var(--ink); border: 1px solid var(--line); font-weight: 600; font-size: 14px;
+  }
+  .tab:hover { background: var(--bg); }
+  .tab.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .tab .n { font-size: 12px; padding: 1px 7px; border-radius: 10px; background: rgba(0, 0, 0, .07); }
+  .tab.active .n { background: rgba(255, 255, 255, .2); }
+
+  .orders { display: flex; flex-direction: column; gap: 14px; }
+  .order {
+    display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center;
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px;
+    text-decoration: none; color: var(--ink); transition: border-color .15s, box-shadow .15s;
+  }
+  .order:hover { border-color: #c9d6dc; box-shadow: 0 8px 24px rgba(27, 42, 52, .07); }
+  @media (max-width: 640px) { .order { grid-template-columns: 1fr; } }
+
+  .o-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .o-id { font-weight: 800; font-size: 17px; }
+  .o-date { color: var(--muted); font-size: 14px; }
+  .pill { display: inline-block; padding: 3px 11px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+  .st-pending   { background: #fff6e0; color: #9a6400; }
+  .st-shipping  { background: #e7f0ff; color: #2456b3; }
+  .st-completed { background: #e3f5ec; color: #1f7a4d; }
+  .st-cancelled { background: #fdeceb; color: var(--danger); }
+
+  .o-items { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+  .thumbs { display: flex; }
+  .thumbs span {
+    width: 38px; height: 38px; border-radius: 10px; margin-right: -8px; border: 2px solid #fff;
+    background: var(--brand-soft); color: var(--brand); display: grid; place-items: center;
+    font-weight: 800; font-size: 14px;
+  }
+  .thumbs span.more { background: #edf1f3; color: var(--muted); font-size: 12px; }
+  .o-names { margin-left: 14px; color: #4a5763; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 420px; }
+
+  .o-right { text-align: right; }
+  @media (max-width: 640px) { .o-right { text-align: left; display: flex; justify-content: space-between; align-items: center; } }
+  .o-total { font-weight: 800; font-size: 19px; }
+  .o-count { color: var(--muted); font-size: 13px; }
+  .o-link { display: inline-block; margin-top: 8px; color: var(--brand); font-weight: 700; font-size: 14px; }
+
+  .empty { text-align: center; padding: 70px 20px; background: var(--card); border: 1px dashed #cfd8de; border-radius: 14px; }
+  .empty .ico { font-size: 50px; }
+  .empty h2 { margin: 10px 0 6px; }
+  .empty p { color: var(--muted); margin: 0 0 20px; }
+
+  .sk { height: 112px; border-radius: 14px; background: linear-gradient(90deg, #eef2f4, #f7f9fa, #eef2f4); background-size: 200% 100%; animation: sk 1.2s infinite; }
+  @keyframes sk { to { background-position: -200% 0; } }
+</style>
+
+<div class="ol-head">
+  <div>
+    <h1>Mening buyurtmalarim</h1>
+    <p id="subtitle">Barcha xaridlaringiz tarixi.</p>
+  </div>
+</div>
+
+<div class="tabs" id="tabs"></div>
+
+<div class="orders" id="orders">
+  <div class="sk"></div><div class="sk"></div><div class="sk"></div>
+</div>
+{% endblock %}
+
+{% block script %}
+needLogin();
+
+const STATUS = { pending: 'Kutilmoqda', shipping: 'Yetkazilmoqda', completed: 'Bajarildi', cancelled: 'Bekor qilindi' };
+const money = x => Number(x).toLocaleString('ru-RU') + " so'm";
+let orders = [];
+let filter = '';
+
+async function load() {
+  let url = '/api/orders/';
+  while (url) {
+    const r = await api('GET', url);
+    if (!r.ok) {
+      document.getElementById('orders').innerHTML =
+        `<div class="empty"><div class="ico">⚠️</div><h2>Yuklab bo'lmadi</h2><p>Sahifani yangilab ko'ring.</p></div>`;
+      return;
+    }
+    orders = orders.concat(list(r.data));
+    url = r.data && r.data.next ? r.data.next : null;
+  }
+  render();
+}
+
+function render() {
+  const box = document.getElementById('orders');
+
+  if (!orders.length) {
+    document.getElementById('tabs').innerHTML = '';
+    box.innerHTML = `
+      <div class="empty">
+        <div class="ico">📦</div>
+        <h2>Hali buyurtma yo'q</h2>
+        <p>Mahsulotlarni savatga qo'shing va birinchi buyurtmangizni bering.</p>
+        <a class="btn" href="/">Xarid qilishni boshlash</a>
+      </div>`;
+    return;
+  }
+
+  const spent = orders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + Number(o.total_price), 0);
+  document.getElementById('subtitle').textContent = `${orders.length} ta buyurtma · jami ${money(spent)}`;
+
+  // Tablar
+  const count = s => orders.filter(o => !s || o.status === s).length;
+  document.getElementById('tabs').innerHTML = [['', 'Barchasi'], ...Object.entries(STATUS)]
+    .filter(([k]) => !k || count(k))
+    .map(([k, v]) => `<button class="tab ${filter === k ? 'active' : ''}" onclick="setFilter('${k}')">${v}<span class="n">${count(k)}</span></button>`)
+    .join('');
+
+  const rows = orders.filter(o => !filter || o.status === filter);
+  box.innerHTML = rows.map(o => {
+    const items = o.items || [];
+    const qty = items.reduce((s, i) => s + i.quantity, 0);
+    const thumbs = items.slice(0, 3).map(i => `<span title="${esc(i.product_name)}">${esc(i.product_name || '?').charAt(0).toUpperCase()}</span>`).join('')
+      + (items.length > 3 ? `<span class="more">+${items.length - 3}</span>` : '');
+    const names = items.map(i => esc(i.product_name)).join(', ');
+    const date = new Date(o.created_at).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' });
+
+    return `
+      <a class="order" href="/orders/${o.id}/">
+        <div>
+          <div class="o-top">
+            <span class="o-id">#${o.id}</span>
+            <span class="pill st-${o.status}">${STATUS[o.status] || esc(o.status)}</span>
+            <span class="o-date">${date}</span>
+          </div>
+          <div class="o-items">
+            <div class="thumbs">${thumbs}</div>
+            <div class="o-names">${names}</div>
+          </div>
+        </div>
+        <div class="o-right">
+          <div>
+            <div class="o-total">${money(o.total_price)}</div>
+            <div class="o-count">${qty} ta mahsulot</div>
+          </div>
+          <span class="o-link">Batafsil ›</span>
+        </div>
+      </a>`;
+  }).join('');
+}
+
+function setFilter(s) {
+  filter = s;
+  render();
+}
+
+load();
+{% endblock %}

@@ -1,0 +1,252 @@
+{% extends 'base.html' %}
+{% block title %}Admin: buyurtmalar{% endblock %}
+
+{% block content %}
+<style>
+  .ad-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+  .ad-head h1 { margin: 0; font-size: 28px; }
+  .ad-head p { margin: 4px 0 0; color: var(--muted); }
+  .ad-head .revenue { text-align: right; }
+  .ad-head .revenue small { display: block; color: var(--muted); font-size: 13px; }
+  .ad-head .revenue strong { font-size: 22px; }
+
+  .ad-tools { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 14px; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tab {
+    display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 10px;
+    background: #fff; color: var(--ink); border: 1px solid var(--line); font-weight: 600; font-size: 14px;
+  }
+  .tab:hover { background: var(--bg); }
+  .tab.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .tab .n { font-size: 12px; padding: 1px 7px; border-radius: 10px; background: rgba(0, 0, 0, .07); }
+  .tab.active .n { background: rgba(255, 255, 255, .2); }
+  .ad-search { position: relative; width: 280px; max-width: 100%; }
+  .ad-search input { margin: 0; padding-left: 36px; }
+  .ad-search span { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+
+  .tbl-wrap { background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow-x: auto; }
+  .tbl { min-width: 820px; border-radius: 0; }
+  .tbl th { position: sticky; top: 0; }
+  .tbl td { vertical-align: middle; }
+  .tbl tr.row { cursor: pointer; }
+  .tbl tr.row:hover td { background: #fafbfc; }
+  .oid { font-weight: 700; }
+  .cust { display: flex; align-items: center; gap: 10px; }
+  .cust .avatar { width: 32px; height: 32px; font-size: 13px; flex-shrink: 0; }
+  .addr { max-width: 240px; color: #4a5763; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .date { color: var(--muted); font-size: 14px; white-space: nowrap; }
+  .sum { font-weight: 700; white-space: nowrap; }
+  .chev { color: var(--muted); transition: transform .15s; display: inline-block; }
+  tr.open .chev { transform: rotate(90deg); }
+
+  .status {
+    width: auto; margin: 0; padding: 6px 30px 6px 12px; border-radius: 20px; font-weight: 700; font-size: 13px;
+    border: 1px solid transparent; cursor: pointer;
+  }
+  .st-pending   { background: #fff6e0; color: #9a6400; }
+  .st-shipping  { background: #e7f0ff; color: #2456b3; }
+  .st-completed { background: #e3f5ec; color: #1f7a4d; }
+  .st-cancelled { background: #fdeceb; color: var(--danger); }
+  .status:disabled { opacity: .6; }
+
+  .details td { background: #fafbfc; padding: 0; }
+  .details-inner { padding: 16px 20px 18px 62px; }
+  .details-inner h4 { margin: 0 0 10px; font-size: 14px; color: var(--muted); }
+  .items { width: 100%; max-width: 560px; background: transparent; }
+  .items td { padding: 6px 0; border: 0; font-size: 14px; }
+  .items td:last-child { text-align: right; font-weight: 600; }
+  .full-addr { margin-top: 10px; font-size: 14px; color: #4a5763; }
+
+  .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty .ico { font-size: 44px; }
+  .denied { text-align: center; background: var(--card); border: 1px dashed #cfd8de; border-radius: 14px; padding: 60px 20px; }
+  .denied .ico { font-size: 44px; }
+  .sk-row { height: 56px; border-bottom: 1px solid var(--line); background: linear-gradient(90deg, #f3f6f7, #fafbfc, #f3f6f7); background-size: 200% 100%; animation: sk 1.2s infinite; }
+  @keyframes sk { to { background-position: -200% 0; } }
+</style>
+
+<div id="page">
+  <div class="ad-head">
+    <div>
+      <h1>Buyurtmalar</h1>
+      <p>Barcha mijozlarning buyurtmalari va ularning holati.</p>
+    </div>
+    <div class="revenue" id="revenue"></div>
+  </div>
+
+  <div class="ad-tools">
+    <div class="tabs" id="tabs"></div>
+    <div class="ad-search">
+      <span>🔍</span>
+      <input id="q" type="search" placeholder="№, mijoz yoki manzil" aria-label="Qidirish">
+    </div>
+  </div>
+
+  <div class="tbl-wrap" id="tblWrap">
+    <div class="sk-row"></div><div class="sk-row"></div><div class="sk-row"></div><div class="sk-row"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block script %}
+needLogin();
+
+const STATUS = {
+  pending:   'Kutilmoqda',
+  shipping:  'Yetkazilmoqda',
+  completed: 'Bajarildi',
+  cancelled: 'Bekor qilindi',
+};
+const money = x => Number(x).toLocaleString('ru-RU') + " so'm";
+let orders = [];
+let filter = new URLSearchParams(location.search).get('status') || '';
+let opened = new Set();
+
+// ---------- Yuklash (barcha sahifalar) ----------
+async function load() {
+  let url = '/api/orders/all/';
+  orders = [];
+  while (url) {
+    const r = await api('GET', url);
+    if (r.status === 403) {
+      document.getElementById('page').innerHTML = `
+        <div class="denied">
+          <div class="ico">🔒</div>
+          <h2>Ruxsat yo'q</h2>
+          <p style="color:var(--muted)">Bu sahifa faqat administratorlar uchun.</p>
+          <a class="btn" href="/">Bosh sahifaga</a>
+        </div>`;
+      return;
+    }
+    if (!r.ok) {
+      document.getElementById('tblWrap').innerHTML = `<div class="empty"><div class="ico">⚠️</div><p>Buyurtmalarni yuklab bo'lmadi.</p></div>`;
+      return;
+    }
+    orders = orders.concat(list(r.data));
+    url = r.data && r.data.next ? r.data.next : null;
+  }
+  render();
+}
+
+// ---------- Ko'rsatish ----------
+function render() {
+  renderTabs();
+  renderRevenue();
+
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const rows = orders.filter(o =>
+    (!filter || o.status === filter) &&
+    (!q || String(o.id).includes(q.replace('#', '')) ||
+           (o.username || '').toLowerCase().includes(q) ||
+           (o.shipping_address || '').toLowerCase().includes(q))
+  );
+
+  const wrap = document.getElementById('tblWrap');
+  if (!rows.length) {
+    wrap.innerHTML = `<div class="empty"><div class="ico">📭</div><p>${orders.length ? 'Mos buyurtma topilmadi.' : "Hali buyurtma yo'q."}</p></div>`;
+    return;
+  }
+
+  wrap.innerHTML = `
+    <table class="tbl">
+      <thead>
+        <tr><th></th><th>Buyurtma</th><th>Mijoz</th><th>Manzil</th><th>Sana</th><th>Summa</th><th>Holati</th></tr>
+      </thead>
+      <tbody>
+        ${rows.map(o => `
+          <tr class="row ${opened.has(o.id) ? 'open' : ''}" onclick="toggle(${o.id})">
+            <td style="width:30px"><span class="chev">›</span></td>
+            <td class="oid">#${o.id}</td>
+            <td>
+              <div class="cust">
+                <span class="avatar">${esc(o.username || '?').charAt(0).toUpperCase()}</span>
+                <span>${esc(o.username || '—')}</span>
+              </div>
+            </td>
+            <td><div class="addr" title="${esc(o.shipping_address)}">${esc(o.shipping_address || '—')}</div></td>
+            <td class="date">${o.created_at ? new Date(o.created_at).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }) : ''}</td>
+            <td class="sum">${money(o.total_price)}</td>
+            <td onclick="event.stopPropagation()">
+              <select class="status st-${o.status}" aria-label="Holat" onchange="setStatus(${o.id}, this)">
+                ${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${k === o.status ? 'selected' : ''}>${v}</option>`).join('')}
+              </select>
+            </td>
+          </tr>
+          ${opened.has(o.id) ? `
+          <tr class="details">
+            <td colspan="7">
+              <div class="details-inner">
+                <h4>Buyurtma tarkibi</h4>
+                <table class="items">
+                  ${(o.items || []).map(i => `
+                    <tr>
+                      <td>${esc(i.product_name)}</td>
+                      <td style="color:var(--muted)">${i.quantity} × ${money(i.price_at_that_time ?? i.price)}</td>
+                      <td>${money((i.price_at_that_time ?? i.price) * i.quantity)}</td>
+                    </tr>`).join('')}
+                </table>
+                <div class="full-addr">📍 ${esc(o.shipping_address || '—')}</div>
+              </div>
+            </td>
+          </tr>` : ''}
+        `).join('')}
+      </tbody>
+    </table>`;
+}
+
+function renderTabs() {
+  const count = s => orders.filter(o => !s || o.status === s).length;
+  const tabs = [['', 'Barchasi'], ...Object.entries(STATUS)];
+  document.getElementById('tabs').innerHTML = tabs.map(([k, v]) =>
+    `<button class="tab ${filter === k ? 'active' : ''}" onclick="setFilter('${k}')">${v}<span class="n">${count(k)}</span></button>`
+  ).join('');
+}
+
+function renderRevenue() {
+  const sum = orders.filter(o => o.status !== 'cancelled').reduce((s, o) => s + Number(o.total_price), 0);
+  document.getElementById('revenue').innerHTML = orders.length
+    ? `<small>Jami savdo (bekor qilinganlarsiz)</small><strong>${money(sum)}</strong>` : '';
+}
+
+function setFilter(s) {
+  filter = s;
+  const p = new URLSearchParams(location.search);
+  s ? p.set('status', s) : p.delete('status');
+  history.replaceState(null, '', location.pathname + (p.toString() ? '?' + p : ''));
+  render();
+}
+
+function toggle(id) {
+  opened.has(id) ? opened.delete(id) : opened.add(id);
+  render();
+}
+
+document.getElementById('q').addEventListener('input', render);
+
+// ---------- Holatni o'zgartirish ----------
+async function setStatus(id, sel) {
+  const order = orders.find(o => o.id === id);
+  const old = order.status;
+  const next = sel.value;
+
+  if (next === 'cancelled' && !confirm(`#${id} buyurtmani bekor qilasizmi?`)) {
+    sel.value = old;
+    return;
+  }
+
+  sel.disabled = true;
+  const r = await api('PATCH', `/api/orders/${id}/status/`, { status: next });
+  sel.disabled = false;
+
+  if (r.ok) {
+    order.status = next;
+    toast(`#${id}: ${STATUS[next]}`);
+    render();
+  } else {
+    sel.value = old;
+    toast(err(r.data), true);
+  }
+}
+
+load();
+{% endblock %}

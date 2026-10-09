@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+{% block title %}Buyurtma{% endblock %}
+
+{% block content %}
+<style>
+  .od-back { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 600; margin-bottom: 14px; }
+  .od-back:hover { color: var(--brand); }
+
+  .od-success {
+    display: flex; align-items: center; gap: 14px; padding: 16px 18px; margin-bottom: 20px;
+    background: #e3f5ec; border: 1px solid #b9e2cc; border-radius: 14px; color: #1f5f3e;
+  }
+  .od-success .ico { font-size: 28px; }
+  .od-success strong { display: block; font-size: 16px; }
+
+  .od-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+  .od-head h1 { margin: 0; font-size: 28px; }
+  .od-head .meta { color: var(--muted); margin-top: 4px; font-size: 14px; }
+  .od-head .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn-ghost { background: #fff; color: var(--ink); border: 1px solid #d4dce2; }
+  .btn-ghost:hover { background: var(--bg); }
+
+  .pill { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 700; vertical-align: middle; margin-left: 10px; }
+  .st-pending   { background: #fff6e0; color: #9a6400; }
+  .st-shipping  { background: #e7f0ff; color: #2456b3; }
+  .st-completed { background: #e3f5ec; color: #1f7a4d; }
+  .st-cancelled { background: #fdeceb; color: var(--danger); }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 22px; margin-bottom: 18px; }
+  .card h2 { font-size: 17px; margin: 0 0 16px; }
+
+  /* Holat bosqichlari */
+  .track { display: grid; grid-template-columns: repeat(3, 1fr); position: relative; }
+  .track::before { content: ''; position: absolute; top: 17px; left: 16.6%; right: 16.6%; height: 3px; background: var(--line); }
+  .track .fill { position: absolute; top: 17px; left: 16.6%; height: 3px; background: var(--brand); transition: width .4s; }
+  .step { position: relative; text-align: center; }
+  .step .dot {
+    width: 36px; height: 36px; margin: 0 auto 8px; border-radius: 50%; display: grid; place-items: center;
+    background: #fff; border: 3px solid var(--line); color: var(--muted); font-weight: 800; font-size: 15px; position: relative;
+  }
+  .step.done .dot { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .step.now .dot { border-color: var(--brand); color: var(--brand); box-shadow: 0 0 0 5px rgba(15, 110, 110, .12); }
+  .step .lbl { font-size: 14px; font-weight: 600; color: var(--muted); }
+  .step.done .lbl, .step.now .lbl { color: var(--ink); }
+  .cancelled-note { display: flex; align-items: center; gap: 12px; color: var(--danger); font-weight: 600; }
+  .cancelled-note .ico { font-size: 26px; }
+
+  .od { display: grid; grid-template-columns: 1fr 320px; gap: 22px; align-items: start; }
+  @media (max-width: 860px) { .od { grid-template-columns: 1fr; } }
+
+  .item { display: grid; grid-template-columns: 52px 1fr auto; gap: 14px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .item:last-child { border-bottom: 0; padding-bottom: 0; }
+  .item:first-child { padding-top: 0; }
+  .item .ph { width: 52px; height: 52px; border-radius: 10px; background: var(--brand-soft); color: var(--brand); display: grid; place-items: center; font-weight: 800; font-size: 20px; }
+  .item .name { font-weight: 600; color: var(--ink); text-decoration: none; }
+  .item a.name:hover { color: var(--brand); }
+  .item .sub { font-size: 14px; color: var(--muted); margin-top: 2px; }
+  .item .line { font-weight: 700; white-space: nowrap; }
+
+  .sum-row { display: flex; justify-content: space-between; margin-bottom: 10px; color: #4a5763; }
+  .sum-total { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid var(--line); padding-top: 14px; margin-top: 14px; }
+  .sum-total strong { font-size: 22px; color: var(--brand); }
+  .info-lbl { font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: 4px; }
+  .info-val { margin-bottom: 14px; white-space: pre-line; }
+
+  .empty { text-align: center; padding: 60px 20px; background: var(--card); border: 1px dashed #cfd8de; border-radius: 14px; }
+  .empty .ico { font-size: 44px; }
+  .sk { background: linear-gradient(90deg, #eef2f4, #f7f9fa, #eef2f4); background-size: 200% 100%; animation: sk 1.2s infinite; border-radius: 14px; }
+  @keyframes sk { to { background-position: -200% 0; } }
+
+  @media print {
+    .site-header, .site-footer, .od-back, .od-head .btns, .od-success { display: none !important; }
+    .card { break-inside: avoid; }
+  }
+</style>
+
+<a class="od-back" href="/orders/">‹ Buyurtmalarimga qaytish</a>
+<div id="order">
+  <div class="sk" style="height:60px;margin-bottom:20px"></div>
+  <div class="sk" style="height:120px;margin-bottom:18px"></div>
+  <div class="sk" style="height:260px"></div>
+</div>
+{% endblock %}
+
+{% block script %}
+needLogin();
+const id = location.pathname.split('/')[2];
+const money = x => Number(x).toLocaleString('ru-RU') + " so'm";
+const STATUS = { pending: 'Kutilmoqda', shipping: 'Yetkazilmoqda', completed: 'Bajarildi', cancelled: 'Bekor qilindi' };
+const STEPS = [['pending', 'Qabul qilindi'], ['shipping', 'Yetkazilmoqda'], ['completed', 'Yetkazildi']];
+
+api('GET', `/api/orders/${id}/`).then(r => {
+  const box = document.getElementById('order');
+  if (!r.ok) {
+    box.innerHTML = `
+      <div class="empty">
+        <div class="ico">📦</div>
+        <h2>Buyurtma topilmadi</h2>
+        <p style="color:var(--muted)">Bunday buyurtma yo'q yoki u sizga tegishli emas.</p>
+        <a class="btn" href="/orders/">Buyurtmalarimga qaytish</a>
+      </div>`;
+    return;
+  }
+
+  const o = r.data;
+  document.title = `Buyurtma #${o.id} · Turbo Shop`;
+  const items = o.items || [];
+  const count = items.reduce((s, i) => s + i.quantity, 0);
+  const created = new Date(o.created_at);
+  const justPlaced = document.referrer.includes('/cart') && (Date.now() - created.getTime()) < 10 * 60 * 1000;
+
+  // Holat bosqichlari
+  let track;
+  if (o.status === 'cancelled') {
+    track = `<div class="cancelled-note"><span class="ico">✕</span>Bu buyurtma bekor qilingan.</div>`;
+  } else {
+    const idx = STEPS.findIndex(([k]) => k === o.status);
+    const fillWidth = o.status === 'completed' ? 66.8 : idx * 33.4;
+    track = `
+      <div class="track">
+        <div class="fill" style="width:${fillWidth}%"></div>
+        ${STEPS.map(([k, label], i) => {
+          const cls = i < idx || o.status === 'completed' ? 'done' : i === idx ? 'now' : '';
+          return `<div class="step ${cls}"><div class="dot">${cls === 'done' ? '✓' : i + 1}</div><div class="lbl">${label}</div></div>`;
+        }).join('')}
+      </div>`;
+  }
+
+  box.innerHTML = `
+    ${justPlaced ? `
+      <div class="od-success">
+        <span class="ico">✅</span>
+        <div><strong>Buyurtmangiz qabul qilindi!</strong>Tez orada u yetkazib berishga tayyorlanadi.</div>
+      </div>` : ''}
+
+    <div class="od-head">
+      <div>
+        <h1>Buyurtma #${o.id}<span class="pill st-${o.status}">${STATUS[o.status] || esc(o.status)}</span></h1>
+        <div class="meta">${created.toLocaleString('ru-RU', { dateStyle: 'long', timeStyle: 'short' })} · ${count} ta mahsulot</div>
+      </div>
+      <div class="btns">
+        <button class="btn-ghost" onclick="window.print()">🖨 Chop etish</button>
+        <a class="btn" href="/">Xaridni davom ettirish</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Buyurtma holati</h2>
+      ${track}
+    </div>
+
+    <div class="od">
+      <div class="card">
+        <h2>Mahsulotlar</h2>
+        ${items.map(i => {
+          const price = i.price_at_that_time ?? i.price;
+          const nameHtml = i.product
+            ? `<a class="name" href="/product/${i.product}/">${esc(i.product_name)}</a>`
+            : `<span class="name">${esc(i.product_name)}</span>`;
+          return `
+            <div class="item">
+              <div class="ph">${esc(i.product_name || '?').charAt(0).toUpperCase()}</div>
+              <div>
+                ${nameHtml}
+                <div class="sub">${i.quantity} × ${money(price)}</div>
+              </div>
+              <div class="line">${money(price * i.quantity)}</div>
+            </div>`;
+        }).join('')}
+      </div>
+
+      <aside>
+        <div class="card">
+          <h2>Hisob</h2>
+          <div class="sum-row"><span>Mahsulotlar (${count})</span><span>${money(o.total_price)}</span></div>
+          <div class="sum-row"><span>Yetkazib berish</span><span>Bepul</span></div>
+          <div class="sum-total"><span>Jami</span><strong>${money(o.total_price)}</strong></div>
+        </div>
+        <div class="card">
+          <h2>Yetkazib berish</h2>
+          <div class="info-lbl">Manzil</div>
+          <div class="info-val">📍 ${esc(o.shipping_address || '—')}</div>
+          <div class="info-lbl">Buyurtmachi</div>
+          <div class="info-val" style="margin-bottom:0">${esc(o.username || '—')}</div>
+        </div>
+      </aside>
+    </div>`;
+});
+{% endblock %}

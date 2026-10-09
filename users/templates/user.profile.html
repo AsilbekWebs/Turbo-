@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+{% block title %}Profil{% endblock %}
+
+{% block content %}
+<style>
+  .pr { max-width: 900px; margin: 0 auto; }
+
+  .pr-hero {
+    position: relative; display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    padding: 28px; border-radius: 18px; color: #fff; overflow: hidden; margin-bottom: 20px;
+    background: linear-gradient(140deg, #0f6e6e 0%, #0b4f55 100%);
+  }
+  .pr-hero::after { content: ''; position: absolute; width: 260px; height: 260px; border-radius: 50%; right: -80px; top: -110px; background: rgba(255, 255, 255, .07); }
+  .pr-avatar {
+    width: 76px; height: 76px; border-radius: 50%; background: #fff; color: var(--brand);
+    display: grid; place-items: center; font-size: 30px; font-weight: 800; flex-shrink: 0;
+  }
+  .pr-hero h1 { margin: 0; font-size: 24px; }
+  .pr-hero .meta { opacity: .85; font-size: 14px; margin-top: 4px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .role { padding: 2px 10px; border-radius: 20px; background: rgba(255, 255, 255, .18); font-weight: 700; font-size: 12px; }
+  .pr-hero .logout { margin-left: auto; position: relative; z-index: 1; background: rgba(255, 255, 255, .15); border: 1px solid rgba(255, 255, 255, .3); }
+  .pr-hero .logout:hover { background: rgba(255, 255, 255, .25); }
+
+  .quick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px; }
+  @media (max-width: 620px) { .quick { grid-template-columns: 1fr; } }
+  .quick a {
+    display: flex; align-items: center; gap: 14px; padding: 16px 18px; background: var(--card);
+    border: 1px solid var(--line); border-radius: 14px; text-decoration: none; color: var(--ink);
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .quick a:hover { border-color: #c9d6dc; box-shadow: 0 8px 22px rgba(27, 42, 52, .07); }
+  .quick .ico { width: 42px; height: 42px; border-radius: 11px; background: var(--brand-soft); display: grid; place-items: center; font-size: 19px; }
+  .quick b { display: block; font-size: 15px; }
+  .quick small { color: var(--muted); }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 24px; margin-bottom: 18px; }
+  .card h2 { font-size: 18px; margin: 0 0 4px; }
+  .card .hint { color: var(--muted); font-size: 14px; margin: 0 0 18px; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+  @media (max-width: 560px) { .grid2 { grid-template-columns: 1fr; } }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 14px; font-weight: 600; }
+  .field input { margin: 6px 0 0; height: 44px; }
+  .field input[readonly] { background: #f4f7f8; color: var(--muted); cursor: not-allowed; }
+  .field.invalid input { border-color: var(--danger); }
+  .field .ferr { color: var(--danger); font-size: 13px; margin-top: 5px; }
+  .field .note { color: var(--muted); font-size: 12px; margin-top: 5px; }
+
+  .actions { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
+  .actions .status { margin-right: auto; font-size: 14px; color: var(--muted); }
+  .btn-ghost { background: #fff; color: var(--ink); border: 1px solid #d4dce2; }
+  .btn-ghost:hover { background: var(--bg); }
+  .actions button:disabled { opacity: .55; cursor: default; }
+
+  .sk { background: linear-gradient(90deg, rgba(255,255,255,.15), rgba(255,255,255,.3), rgba(255,255,255,.15)); background-size: 200% 100%; animation: sk 1.2s infinite; border-radius: 8px; }
+  @keyframes sk { to { background-position: -200% 0; } }
+</style>
+
+<div class="pr">
+  <div class="pr-hero">
+    <div class="pr-avatar" id="avatar">·</div>
+    <div>
+      <h1 id="fullName"><span class="sk" style="display:inline-block;width:180px;height:26px"></span></h1>
+      <div class="meta" id="meta"></div>
+    </div>
+    <button class="logout" onclick="logout()">Chiqish</button>
+  </div>
+
+  <div class="quick">
+    <a href="/orders/"><span class="ico">📦</span><span><b>Buyurtmalarim</b><small id="qOrders">—</small></span></a>
+    <a href="/cart/"><span class="ico">🛒</span><span><b>Savat</b><small id="qCart">—</small></span></a>
+    <a href="/likes/"><span class="ico">♥</span><span><b>Yoqqanlar</b><small id="qLikes">—</small></span></a>
+  </div>
+
+  <form class="card" id="f" novalidate>
+    <h2>Shaxsiy ma'lumotlar</h2>
+    <p class="hint">Yetkazib berish va bog'lanish uchun ishlatiladi.</p>
+
+    <div class="grid2">
+      <div class="field" data-field="first_name">
+        <label for="first_name">Ism</label>
+        <input id="first_name" name="first_name" autocomplete="given-name" placeholder="Ismingiz">
+        <div class="ferr"></div>
+      </div>
+      <div class="field" data-field="last_name">
+        <label for="last_name">Familiya</label>
+        <input id="last_name" name="last_name" autocomplete="family-name" placeholder="Familiyangiz">
+        <div class="ferr"></div>
+      </div>
+      <div class="field" data-field="email">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" autocomplete="email" placeholder="nom@example.com">
+        <div class="ferr"></div>
+      </div>
+      <div class="field" data-field="phone">
+        <label for="phone">Telefon</label>
+        <input id="phone" name="phone" type="tel" autocomplete="tel" placeholder="+998 90 123 45 67">
+        <div class="ferr"></div>
+      </div>
+      <div class="field">
+        <label for="username">Login</label>
+        <input id="username" readonly>
+        <div class="note">Loginni o'zgartirib bo'lmaydi.</div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <span class="status" id="status"></span>
+      <button type="button" class="btn-ghost" id="resetBtn" disabled>Bekor qilish</button>
+      <button type="submit" id="saveBtn" disabled>O'zgarishlarni saqlash</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block script %}
+needLogin();
+
+const f = document.getElementById('f');
+const FIELDS = ['first_name', 'last_name', 'email', 'phone'];
+const ROLES = { admin: 'Administrator', customer: 'Xaridor' };
+let original = {};
+
+// ---------- Profil ----------
+function fillHero(u) {
+  const full = [u.first_name, u.last_name].filter(Boolean).join(' ');
+  document.getElementById('fullName').textContent = full || u.username;
+  document.getElementById('avatar').textContent = (full || u.username || '?').charAt(0).toUpperCase();
+  const joined = u.date_joined ? new Date(u.date_joined).toLocaleDateString('ru-RU', { year: 'numeric', month: 'long' }) : '';
+  document.getElementById('meta').innerHTML = `
+    <span>@${esc(u.username)}</span>
+    ${u.role ? `<span class="role">${esc(ROLES[u.role] || u.role)}</span>` : ''}
+    ${joined ? `<span>${joined} dan beri a'zo</span>` : ''}`;
+}
+
+api('GET', '/api/auth/profile/').then(r => {
+  if (!r.ok) return toast("Profilni yuklab bo'lmadi", true);
+  const u = r.data;
+  fillHero(u);
+  document.getElementById('username').value = u.username;
+  FIELDS.forEach(k => f.elements[k].value = u[k] || '');
+  original = Object.fromEntries(FIELDS.map(k => [k, u[k] || '']));
+  checkDirty();
+});
+
+// ---------- Tezkor havolalar ----------
+api('GET', '/api/orders/').then(r => {
+  if (r.ok) document.getElementById('qOrders').textContent = (r.data.count ?? list(r.data).length) + ' ta buyurtma';
+});
+api('GET', '/api/likes/').then(r => {
+  if (r.ok) document.getElementById('qLikes').textContent = (r.data.count ?? list(r.data).length) + ' ta mahsulot';
+});
+api('GET', '/api/cart/').then(r => {
+  if (r.ok) {
+    const n = r.data.items.reduce((s, i) => s + i.quantity, 0);
+    document.getElementById('qCart').textContent = n ? n + ' ta mahsulot' : "Bo'sh";
+  }
+});
+
+// ---------- O'zgarishni kuzatish ----------
+function current() { return Object.fromEntries(FIELDS.map(k => [k, f.elements[k].value.trim()])); }
+function checkDirty() {
+  const dirty = FIELDS.some(k => current()[k] !== original[k]);
+  document.getElementById('saveBtn').disabled = !dirty;
+  document.getElementById('resetBtn').disabled = !dirty;
+  document.getElementById('status').textContent = dirty ? 'Saqlanmagan o\'zgarishlar bor' : '';
+}
+f.addEventListener('input', e => { clearError(e.target.name); checkDirty(); });
+
+document.getElementById('resetBtn').onclick = () => {
+  FIELDS.forEach(k => { f.elements[k].value = original[k]; clearError(k); });
+  checkDirty();
+};
+
+// ---------- Xatolar ----------
+function setError(name, text) {
+  const el = f.querySelector(`[data-field="${name}"]`);
+  if (!el) return false;
+  el.classList.add('invalid');
+  el.querySelector('.ferr').textContent = text;
+  return true;
+}
+function clearError(name) {
+  const el = f.querySelector(`[data-field="${name}"]`);
+  if (el) { el.classList.remove('invalid'); el.querySelector('.ferr').textContent = ''; }
+}
+
+// ---------- Saqlash ----------
+f.onsubmit = async e => {
+  e.preventDefault();
+  FIELDS.forEach(clearError);
+
+  const data = current();
+  if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+    setError('email', "Email manzil noto'g'ri.");
+    return f.email.focus();
+  }
+
+  // Faqat o'zgargan maydonlarni yuboramiz
+  const changed = Object.fromEntries(FIELDS.filter(k => data[k] !== original[k]).map(k => [k, data[k]]));
+
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saqlanmoqda...';
+  const r = await api('PATCH', '/api/auth/profile/', changed);
+  btn.textContent = "O'zgarishlarni saqlash";
+
+  if (r.ok) {
+    original = Object.fromEntries(FIELDS.map(k => [k, r.data[k] || '']));
+    FIELDS.forEach(k => f.elements[k].value = original[k]);
+    fillHero(r.data);
+    checkDirty();
+    toast('Profil saqlandi');
+  } else if (r.status === 405) {
+    checkDirty();
+    toast("Serverda profilni o'zgartirish yoqilmagan (ProfileView PATCH qabul qilmayapti)", true);
+  } else {
+    checkDirty();
+    const rest = [];
+    Object.entries(r.data || {}).forEach(([k, v]) => {
+      const text = Array.isArray(v) ? v.join(' ') : String(v);
+      if (!setError(k, text)) rest.push(text);
+    });
+    toast(rest.length ? rest.join('\n') : "Ba'zi maydonlarda xato bor", true);
+  }
+};
+{% endblock %}
